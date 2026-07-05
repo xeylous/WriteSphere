@@ -10,7 +10,7 @@ const groq = new Groq({ apiKey: env.GROQ_API_KEY });
  * Records token consumption and latency metrics in database.
  */
 class AIService {
-  private model = 'llama3-70b-8192';
+  private model = 'llama-3.3-70b-specdec';
 
   private async callGroq(prompt: string, systemPrompt: string, userId: string, action: string, blogId?: string) {
     const startTime = Date.now();
