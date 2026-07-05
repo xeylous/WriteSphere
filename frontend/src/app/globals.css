@@ -129,6 +129,24 @@ blockquote {
   border-radius: var(--radius-sm);
 }
 
+.dark :focus-visible {
+  outline-color: #E4E4E7; /* Zinc-200 (light zinc) */
+}
+
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: #E4E4E7 !important;
+  /* box-shadow: 0 0 0 2px rgba(228, 228, 231, 0.3) !important; */
+}
+
+textarea.no-ring:focus,
+input.no-ring:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+}
+
 /* ─── Selection ─────────────────────────────────── */
 ::selection {
   background-color: var(--accent-surface);
