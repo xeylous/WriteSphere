@@ -9,6 +9,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { LayoutDashboard, PenSquare, FileText, BarChart2, Settings, LogOut, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Avatar } from '@/components/ui/Avatar';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -76,7 +77,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           </nav>
 
           {/* Footer Actions */}
-          <div className="p-4 border-t border-border-custom">
+          <div className="p-4 border-t border-border-custom space-y-2">
+            <div className="flex items-center justify-between px-3 py-1.5 rounded-[var(--radius-md)] bg-surface-secondary/50 border border-border-custom/40">
+              <span className="text-xs font-semibold text-muted">Appearance</span>
+              <ThemeToggle />
+            </div>
+
             <button
               onClick={logout}
               className="flex items-center gap-3 px-3 py-2 w-full text-sm font-medium text-red-500 hover:bg-red-500/10 rounded-[var(--radius-md)] transition-colors duration-200"
