@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Navbar } from '@/components/layout/Navbar';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Mail, Lock, AlertCircle, Quote } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Script from 'next/script';
 
 const loginSchema = z.object({
   email: z.string().email('Invalid email address'),
@@ -20,7 +21,7 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -44,9 +45,39 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleResponse = async (response: any) => {
+    try {
+      setFormError(null);
+      setLoading(true);
+      await googleLogin(response.credential);
+    } catch (err: any) {
+      setFormError(err.message || 'Google authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initGoogleSdk = () => {
+    if (typeof window !== 'undefined' && (window as any).google) {
+      (window as any).google.accounts.id.initialize({
+        client_id: '967264024254-16n0bkeq3dm8kc69ubh65qjteqtf6mio.apps.googleusercontent.com',
+        callback: handleGoogleResponse,
+      });
+      (window as any).google.accounts.id.renderButton(
+        document.getElementById('google-signin-btn'),
+        { theme: 'outline', size: 'large', width: '370' }
+      );
+    }
+  };
+
+  useEffect(() => {
+    initGoogleSdk();
+  }, []);
+
   return (
     <>
       <Navbar />
+      <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" onLoad={initGoogleSdk} />
       <div className="min-h-screen flex items-center justify-center bg-bg relative overflow-hidden px-4 pt-20 pb-12">
         {/* Subtle grid pattern spanning the background */}
         <div className="absolute inset-0 bg-grid-pattern opacity-[0.03] pointer-events-none" />
@@ -183,6 +214,19 @@ export default function LoginPage() {
               Sign In
             </Button>
           </form>
+
+          {/* Google Sign In Divider & Button */}
+          <div className="space-y-4 mt-6">
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-border-custom/50"></div>
+              <span className="flex-shrink mx-4 text-xs text-muted">or continue with</span>
+              <div className="flex-grow border-t border-border-custom/50"></div>
+            </div>
+
+            <div className="flex justify-center w-full">
+              <div id="google-signin-btn" className="w-full flex justify-center min-h-[40px]"></div>
+            </div>
+          </div>
 
           <p className="text-center text-sm text-muted mt-8 pt-6 border-t border-border-custom/30">
             New to WriteSphere?{' '}

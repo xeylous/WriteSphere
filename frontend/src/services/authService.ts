@@ -19,6 +19,14 @@ export const authService = {
   },
 
   /**
+   * Login/Register with Google OAuth credential.
+   */
+  async googleLogin(credential: string): Promise<AuthResponse> {
+    const { data } = await api.post('/auth/google', { credential });
+    return data.data;
+  },
+
+  /**
    * Log out of the current session.
    */
   async logout(): Promise<void> {

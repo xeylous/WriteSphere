@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Navbar } from '@/components/layout/Navbar';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User as UserIcon, Mail, Lock, AlertCircle, Quote } from 'lucide-react';
 import { motion } from 'framer-motion';
+import Script from 'next/script';
 
 const registerSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
@@ -25,7 +26,7 @@ const registerSchema = z.object({
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function RegisterPage() {
-  const { register: signup } = useAuth();
+  const { register: signup, googleLogin } = useAuth();
   const [formError, setFormError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -49,9 +50,39 @@ export default function RegisterPage() {
     }
   };
 
+  const handleGoogleResponse = async (response: any) => {
+    try {
+      setFormError(null);
+      setLoading(true);
+      await googleLogin(response.credential);
+    } catch (err: any) {
+      setFormError(err.message || 'Google authentication failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const initGoogleSdk = () => {
+    if (typeof window !== 'undefined' && (window as any).google) {
+      (window as any).google.accounts.id.initialize({
+        client_id: '967264024254-16n0bkeq3dm8kc69ubh65qjteqtf6mio.apps.googleusercontent.com',
+        callback: handleGoogleResponse,
+      });
+      (window as any).google.accounts.id.renderButton(
+        document.getElementById('google-signup-btn'),
+        { theme: 'outline', size: 'large', width: '370' }
+      );
+    }
+  };
+
+  useEffect(() => {
+    initGoogleSdk();
+  }, []);
+
   return (
     <>
       <Navbar />
+      <Script src="https://accounts.google.com/gsi/client" strategy="lazyOnload" onLoad={initGoogleSdk} />
       <div className="min-h-screen flex items-center justify-center bg-bg relative overflow-hidden px-4 pt-20 pb-12">
         {/* Unique Background Grid Pattern for Register: Mesh grid and rotating blobs */}
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
@@ -198,6 +229,19 @@ export default function RegisterPage() {
               Get Started
             </Button>
           </form>
+
+          {/* Google Sign In Divider & Button */}
+          <div className="space-y-4 mt-6">
+            <div className="relative flex py-2 items-center">
+              <div className="flex-grow border-t border-border-custom/50"></div>
+              <span className="flex-shrink mx-4 text-xs text-muted">or continue with</span>
+              <div className="flex-grow border-t border-border-custom/50"></div>
+            </div>
+
+            <div className="flex justify-center w-full">
+              <div id="google-signup-btn" className="w-full flex justify-center min-h-[40px]"></div>
+            </div>
+          </div>
 
           <p className="text-center text-sm text-muted mt-8 pt-6 border-t border-border-custom/30">
             Already have an account?{' '}

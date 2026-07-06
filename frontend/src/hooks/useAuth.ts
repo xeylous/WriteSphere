@@ -56,6 +56,20 @@ export function useAuth() {
     }
   };
 
+  const googleLogin = async (credential: string) => {
+    try {
+      dispatch(setAuthLoading(true));
+      const data = await authService.googleLogin(credential);
+      localStorage.setItem('accessToken', data.accessToken);
+      localStorage.setItem('refreshToken', data.refreshToken);
+      dispatch(setUser(data.user));
+      router.push('/dashboard');
+    } catch (err: any) {
+      dispatch(setAuthError(err.message || 'Google login failed'));
+      throw err;
+    }
+  };
+
   return {
     user,
     isAuthenticated,
@@ -64,5 +78,6 @@ export function useAuth() {
     login,
     register,
     logout,
+    googleLogin,
   };
 }
