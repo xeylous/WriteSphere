@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
-import { Sparkles, Eye, Save, Loader2, Sparkle, Code, Heading1, Heading2, Heading3, Quote, List, Image as ImageIcon, X } from 'lucide-react';
+import { Sparkles, Eye, Save, Loader2, Sparkle, Code, Heading1, Heading2, Heading3, Quote, List, Image as ImageIcon, X, Text, ListOrdered, Minus, Link as LinkIcon } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
@@ -76,12 +76,16 @@ export default function WriteStoryPage() {
 
   // Slash commands catalog
   const commands = [
+    { label: 'Text', value: '', icon: Text, desc: 'Normal paragraph text' },
     { label: 'Heading 1', value: '# ', icon: Heading1, desc: 'Large title header' },
     { label: 'Heading 2', value: '## ', icon: Heading2, desc: 'Medium section header' },
     { label: 'Heading 3', value: '### ', icon: Heading3, desc: 'Small subsection header' },
+    { label: 'Bulleted List', value: '* ', icon: List, desc: 'Simple bullet list' },
+    { label: 'Numbered List', value: '1. ', icon: ListOrdered, desc: 'Sequential numbered list' },
+    { label: 'Divider', value: '\n---\n', icon: Minus, desc: 'Horizontal rule line separator' },
+    { label: 'Link', value: '[Text](URL)', icon: LinkIcon, desc: 'Insert hyperlink' },
     { label: 'Code Block', value: '\n```typescript\n// code here\n```\n', icon: Code, desc: 'Code syntax highlighting' },
     { label: 'Blockquote', value: '> ', icon: Quote, desc: 'Editorial pull quote block' },
-    { label: 'Bulleted List', value: '* ', icon: List, desc: 'Simple bullet list' },
     { label: 'Insert Image', value: '![Alt Text](URL)', icon: ImageIcon, desc: 'Markdown image block' },
   ];
 
