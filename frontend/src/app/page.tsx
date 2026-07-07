@@ -8,12 +8,11 @@ import { TrendingSection } from '@/features/home/components/TrendingSection';
 import { CategoriesSection } from '@/features/home/components/CategoriesSection';
 import { LatestBlogsSection } from '@/features/home/components/LatestBlogsSection';
 import { FeaturedAuthorsSection } from '@/features/home/components/FeaturedAuthorsSection';
-import { NewsletterSection } from '@/features/home/components/NewsletterSection';
 
 /**
  * WriteSphere Homepage
  * Premium editorial layout with hero, trending, categories, latest blogs,
- * featured authors, and newsletter sections.
+ * and featured authors sections.
  */
 export default function HomePage() {
   return (
@@ -30,8 +29,6 @@ export default function HomePage() {
           <LatestBlogsSection />
 
           <FeaturedAuthorsSection />
-
-          <NewsletterSection />
         </div>
       </div>
       <Footer />
