@@ -13,6 +13,88 @@ import { Sparkles, Eye, Save, Loader2, Sparkle, Code, Heading1, Heading2, Headin
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
+import Script from 'next/script';
+
+// Helper: Convert contentEditable HTML to Markdown
+function htmlToMarkdown(html: string): string {
+  let markdown = html;
+  
+  // Normalize linebreaks
+  markdown = markdown.replace(/<div\s*\/?>/gi, '\n');
+  markdown = markdown.replace(/<\/div>/gi, '');
+  
+  // Headings
+  markdown = markdown.replace(/<h1>(.*?)<\/h1>/gi, '# $1\n');
+  markdown = markdown.replace(/<h2>(.*?)<\/h2>/gi, '## $1\n');
+  markdown = markdown.replace(/<h3>(.*?)<\/h3>/gi, '### $1\n');
+  
+  // Quotes
+  markdown = markdown.replace(/<blockquote>(.*?)<\/blockquote>/gi, '> $1\n');
+  
+  // Lists
+  markdown = markdown.replace(/<ul>([\s\S]*?)<\/ul>/gi, (match, p1) => {
+    return p1.replace(/<li>(.*?)<\/li>/gi, '* $1\n') + '\n';
+  });
+  markdown = markdown.replace(/<ol>([\s\S]*?)<\/ol>/gi, (match, p1) => {
+    let index = 1;
+    return p1.replace(/<li>(.*?)<\/li>/gi, () => `${index++}. $1\n`) + '\n';
+  });
+  
+  // Dividers
+  markdown = markdown.replace(/<hr\s*\/?>/gi, '\n---\n');
+  
+  // Hyperlinks
+  markdown = markdown.replace(/<a\s+[^>]*href="(.*?)"[^>]*>(.*?)<\/a>/gi, '[$2]($1)');
+  
+  // Paragraphs
+  markdown = markdown.replace(/<p>(.*?)<\/p>/gi, '$1\n\n');
+  markdown = markdown.replace(/<br\s*\/?>/gi, '\n');
+  
+  // Clean up tag remnants
+  markdown = markdown.replace(/<[^>]+>/g, '');
+  
+  return markdown.trim();
+}
+
+// Helper: Convert Markdown to contentEditable HTML
+function markdownToHtml(markdown: string): string {
+  if (!markdown) return '<p><br></p>';
+  
+  let html = markdown;
+  
+  // Headings
+  html = html.replace(/^# (.*?)$/gm, '<h1>$1</h1>');
+  html = html.replace(/^## (.*?)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^### (.*?)$/gm, '<h3>$1</h3>');
+  
+  // Dividers
+  html = html.replace(/^---$/gm, '<hr />');
+  
+  // Blockquotes
+  html = html.replace(/^> (.*?)$/gm, '<blockquote>$1</blockquote>');
+  
+  // Lists
+  html = html.replace(/^\* (.*?)$/gm, '<ul><li>$1</li></ul>');
+  html = html.replace(/^\d+\. (.*?)$/gm, '<ol><li>$1</li></ol>');
+  html = html.replace(/<\/ul>\s*<ul>/g, '');
+  html = html.replace(/<\/ol>\s*<ol>/g, '');
+  
+  // Links
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2">$1</a>');
+  
+  // Paragraphs wrapping
+  const lines = html.split('\n');
+  const processedLines = lines.map(line => {
+    const trimmed = line.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('<h') || trimmed.startsWith('<u') || trimmed.startsWith('<o') || trimmed.startsWith('<b') || trimmed.startsWith('<h') || trimmed.startsWith('<a')) {
+      return line;
+    }
+    return `<p>${line}</p>`;
+  });
+  
+  return processedLines.join('');
+}
 
 export default function WriteStoryPage() {
   const router = useRouter();
@@ -25,7 +107,7 @@ export default function WriteStoryPage() {
   const [coverImage, setCoverImage] = useState('');
   const [category, setCategory] = useState('');
   
-  // Editor mode: 'slash' (Normal with slash commands) or 'raw' (Markdown code)
+  // Editor mode: 'slash' (Normal WYSIWYG) or 'raw' (Markdown code)
   const [editorMode, setEditorMode] = useState<'slash' | 'raw'>('slash');
   
   // AI assistant drawer state
@@ -35,12 +117,21 @@ export default function WriteStoryPage() {
   const [showCommands, setShowCommands] = useState(false);
   const [commandFilter, setCommandFilter] = useState('');
   const [cursorCoords, setCursorCoords] = useState({ top: 0, left: 0 });
+  
+  const editorRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
   // AI Panel State
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiOutput, setAiOutput] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Sync Markdown content into contentEditable only when loaded/injected externally
+  useEffect(() => {
+    if (editorMode === 'slash' && editorRef.current && document.activeElement !== editorRef.current) {
+      editorRef.current.innerHTML = markdownToHtml(content);
+    }
+  }, [content, editorMode]);
 
   // Queries
   const { data: categoriesResponse } = useQuery({
@@ -60,100 +151,116 @@ export default function WriteStoryPage() {
   });
 
   const handlePublish = () => {
-    if (!title.trim() || !content.trim() || !category) {
+    const rawContent = editorMode === 'slash' && editorRef.current 
+      ? htmlToMarkdown(editorRef.current.innerHTML)
+      : content;
+      
+    if (!title.trim() || !rawContent.trim() || !category) {
       alert('Title, content, and category are required.');
       return;
     }
     publishMutation.mutate({
       title,
-      content,
-      excerpt: excerpt || content.substring(0, 160).replace(/[#*`]/g, ''),
+      content: rawContent,
+      excerpt: excerpt || rawContent.substring(0, 160).replace(/[#*`]/g, ''),
       coverImage,
       category,
       status: 'published',
     });
   };
 
-  // Slash commands catalog
+  // Slash commands catalog matching requested options
   const commands = [
-    { label: 'Text', value: '', icon: Text, desc: 'Normal paragraph text' },
-    { label: 'Heading 1', value: '# ', icon: Heading1, desc: 'Large title header' },
-    { label: 'Heading 2', value: '## ', icon: Heading2, desc: 'Medium section header' },
-    { label: 'Heading 3', value: '### ', icon: Heading3, desc: 'Small subsection header' },
-    { label: 'Bulleted List', value: '* ', icon: List, desc: 'Simple bullet list' },
-    { label: 'Numbered List', value: '1. ', icon: ListOrdered, desc: 'Sequential numbered list' },
-    { label: 'Divider', value: '\n---\n', icon: Minus, desc: 'Horizontal rule line separator' },
-    { label: 'Link', value: '[Text](URL)', icon: LinkIcon, desc: 'Insert hyperlink' },
-    { label: 'Code Block', value: '\n```typescript\n// code here\n```\n', icon: Code, desc: 'Code syntax highlighting' },
-    { label: 'Blockquote', value: '> ', icon: Quote, desc: 'Editorial pull quote block' },
-    { label: 'Insert Image', value: '![Alt Text](URL)', icon: ImageIcon, desc: 'Markdown image block' },
+    { label: 'Text', command: 'formatBlock', arg: 'p', icon: Text, desc: 'Normal paragraph text' },
+    { label: 'Heading 1', command: 'formatBlock', arg: 'h1', icon: Heading1, desc: 'Large title header' },
+    { label: 'Heading 2', command: 'formatBlock', arg: 'h2', icon: Heading2, desc: 'Medium section header' },
+    { label: 'Heading 3', command: 'formatBlock', arg: 'h3', icon: Heading3, desc: 'Small subsection header' },
+    { label: 'Bullet List', command: 'insertUnorderedList', arg: null, icon: List, desc: 'Simple bullet list' },
+    { label: 'Numbered List', command: 'insertOrderedList', arg: null, icon: ListOrdered, desc: 'Sequential numbered list' },
+    { label: 'Divider', command: 'insertHorizontalRule', arg: null, icon: Minus, desc: 'Horizontal rule separator' },
+    { label: 'Link', command: 'createLink', arg: 'prompt', icon: LinkIcon, desc: 'Insert hyperlink' },
   ];
 
   const filteredCommands = commands.filter(cmd => 
     cmd.label.toLowerCase().includes(commandFilter.toLowerCase())
   );
 
-  // Handle slash typing
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const val = e.target.value;
-    setContent(val);
+  // Monitor typing for slash command initialization
+  const handleEditorInput = (e: React.FormEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const text = target.innerText;
     
-    // Check if user typed '/' at current cursor position
-    const selectionEnd = e.target.selectionEnd;
-    const textBeforeCursor = val.substring(0, selectionEnd);
-    const words = textBeforeCursor.split(/[\s\n]/);
-    const lastWord = words[words.length - 1];
-
-    if (lastWord.startsWith('/')) {
-      setShowCommands(true);
-      setCommandFilter(lastWord.substring(1));
+    // Check if user is typing a slash command
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+    
+    const range = selection.getRangeAt(0);
+    const startNode = range.startContainer;
+    
+    if (startNode.nodeType === Node.TEXT_NODE && startNode.nodeValue) {
+      const cursorOffset = range.startOffset;
+      const textBeforeCursor = startNode.nodeValue.substring(0, cursorOffset);
+      const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
       
-      // Calculate cursor position for overlay
-      const { selectionStart } = e.target;
-      const textToSelection = val.substring(0, selectionStart);
-      const lines = textToSelection.split('\n');
-      const currentLineIndex = lines.length - 1;
-      const currentCharIndex = lines[currentLineIndex].length;
-
-      // Estimate coordinates (rough text caret calculation helper)
-      setCursorCoords({
-        top: Math.min(currentLineIndex * 24 + 45, 450),
-        left: Math.min(currentCharIndex * 8 + 10, 250),
-      });
+      if (lastSlashIndex !== -1) {
+        setShowCommands(true);
+        setCommandFilter(textBeforeCursor.substring(lastSlashIndex + 1));
+        
+        // Estimate overlay coordinates relative to client range
+        const rect = range.getBoundingClientRect();
+        const editorRect = target.getBoundingClientRect();
+        setCursorCoords({
+          top: rect.bottom - editorRect.top + target.scrollTop + 10,
+          left: rect.left - editorRect.left + 15,
+        });
+      } else {
+        setShowCommands(false);
+      }
     } else {
       setShowCommands(false);
     }
+    
+    // Update local state in background
+    setContent(htmlToMarkdown(target.innerHTML));
   };
 
-  // Insert slash command action template
-  const insertCommand = (value: string) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-
-    // Find start of slash token to replace
-    const beforeText = text.substring(0, start);
-    const slashIndex = beforeText.lastIndexOf('/');
-
-    if (slashIndex !== -1) {
-      const updatedText = text.substring(0, slashIndex) + value + text.substring(end);
-      setContent(updatedText);
-      
-      // Reset cursor focus
-      setTimeout(() => {
-        textarea.focus();
-        const newCursorPos = slashIndex + value.length;
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }, 50);
+  // Apply slash command block styling using document.execCommand
+  const applyCommand = (command: string, arg: string | null) => {
+    editorRef.current?.focus();
+    
+    // Delete slash token before applying block styles
+    const selection = window.getSelection();
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const node = range.startContainer;
+      if (node.nodeType === Node.TEXT_NODE && node.nodeValue) {
+        const cursorOffset = range.startOffset;
+        const textBeforeCursor = node.nodeValue.substring(0, cursorOffset);
+        const lastSlashIndex = textBeforeCursor.lastIndexOf('/');
+        if (lastSlashIndex !== -1) {
+          range.setStart(node, lastSlashIndex);
+          range.setEnd(node, cursorOffset);
+          range.deleteContents();
+        }
+      }
+    }
+    
+    if (command === 'createLink') {
+      const url = prompt('Enter URL:');
+      if (url) {
+        document.execCommand(command, false, url);
+      }
+    } else {
+      document.execCommand(command, false, arg || undefined);
     }
     
     setShowCommands(false);
+    if (editorRef.current) {
+      setContent(htmlToMarkdown(editorRef.current.innerHTML));
+    }
   };
 
-  // AI Assistant integration calls
+  // AI assistant integration calls
   const handleAIAction = async (action: 'continue' | 'grammar' | 'seo' | 'summary' | 'intro') => {
     setIsAiLoading(true);
     setAiOutput('');
@@ -277,13 +384,14 @@ export default function WriteStoryPage() {
         {/* Story editor text area - completely flat, whole page, no borders, no rings */}
         <div className="relative">
           {editorMode === 'slash' ? (
-            <div className="space-y-4">
-              <textarea
-                ref={textareaRef}
-                placeholder="Tell your story. Type '/' to insert headings, lists, code blocks, or quotes..."
-                value={content}
-                onChange={handleTextareaChange}
-                className="w-full min-h-[500px] bg-transparent border-none outline-none focus:ring-0 text-base text-body font-body leading-relaxed resize-none placeholder:text-muted/40 no-ring"
+            <div className="space-y-4 relative">
+              {/* Rich-Text contentEditable editor */}
+              <div
+                ref={editorRef}
+                contentEditable
+                onInput={handleEditorInput}
+                data-placeholder="Tell your story. Type '/' to insert headings, lists, code blocks, or quotes..."
+                className="w-full min-h-[500px] bg-transparent border-none outline-none focus:ring-0 text-base text-body font-body leading-relaxed resize-none no-ring wysiwyg-editor"
               />
 
               {/* Floating slash command menu */}
@@ -303,7 +411,7 @@ export default function WriteStoryPage() {
                     return (
                       <button
                         key={cmd.label}
-                        onClick={() => insertCommand(cmd.value)}
+                        onClick={() => applyCommand(cmd.command, cmd.arg)}
                         className="w-full flex items-center gap-3 px-2 py-1.5 rounded-[var(--radius-sm)] hover:bg-surface-secondary text-left transition-colors duration-150"
                       >
                         <span className="p-1 bg-surface-secondary rounded border border-border-custom text-primary">
