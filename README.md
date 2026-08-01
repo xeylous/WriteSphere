@@ -44,45 +44,7 @@ WriteSphere is a modern, high-performance publishing and blogging platform desig
 
 ---
 
-## 🚀 Quick Start
 
-### 1. Configure Environments
-Create a `.env` file in the root directory:
-```env
-# Server
-NODE_ENV=development
-PORT=5000
-FRONTEND_URL=http://localhost:3000
-
-# Databases
-MONGODB_URI=your-mongodb-atlas-connection-string
-REDIS_HOST=your-redis-host
-REDIS_PORT=your-redis-port
-REDIS_PASSWORD=your-redis-password
-
-# JWT Secrets
-JWT_SECRET=your-secure-jwt-key
-
-# API Integrations
-GOOGLE_CLIENT_ID=your-google-oauth-client-id
-GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
-GROQ_API_KEY=your-groq-cloud-token
-```
-
-### 2. Launch Local Environment (Natively)
-Start your local databases using Docker:
-```bash
-docker compose up -d mongodb redis
-```
-
-Launch the development servers:
-```bash
-# Start backend API (Port 5000)
-cd backend
-npm install
-npm run dev
-
-# Start frontend application (Port 3000)
 cd ../frontend
 npm install
 npm run dev
