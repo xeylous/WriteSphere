@@ -42,10 +42,3 @@ WriteSphere is a modern, high-performance publishing and blogging platform desig
 └── docker-compose.yml# Container configuration
 ```
 
----
-
-
-cd ../frontend
-npm install
-npm run dev
-
